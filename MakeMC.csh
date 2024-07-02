@@ -669,6 +669,17 @@ if ( "$CUSTOM_ANA_PLUGINS" != "None" ) then
 	endif
 endif
 
+if ( "$CUSTOM_ANA_PLUGINS" != "None" ) then
+	set ana_pre=`echo $CUSTOM_ANA_PLUGINS | cut -c1-4`
+	set jana_ana_config_file=`echo $CUSTOM_ANA_PLUGINS | sed -r 's/^.{5}//'`
+	echo "ANA PREFIX:  " $ana_pre
+	if ( $ana_pre == "file" ) then
+		if ( -f $jana_ana_config_file ) then
+			cp $jana_ana_config_file ./ana_jana.cfg
+		endif
+	endif
+endif
+
 if ( "$GENR" != "0" ) then
 
     set gen_pre=`echo $GENERATOR | cut -c1-4`
