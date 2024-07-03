@@ -77,6 +77,10 @@ export GEN_MIN_ENERGY=$1
 shift
 export GEN_MAX_ENERGY=$1
 shift
+export UPPER_VERTEX_INDICES=$1
+shift
+export LOWER_VERTEX_INDICES=$1
+shift
 export TAGSTR=$1
 shift
 export CUSTOM_PLUGINS=$1
@@ -483,6 +487,7 @@ echo "Electron beam energy to use: "$eBEAM_ENERGY" GeV"
 echo "Radiator Thickness to use: "$radthick" m"
 echo "Collimator Diameter: 0.00"$colsize" m"
 echo "Photon Energy between "$GEN_MIN_ENERGY" and "$GEN_MAX_ENERGY" GeV"
+echo "Upper / Lower indices are "$UPPER_VERTEX_INDICES" and "$LOWER_VERTEX_INDICES" "
 echo "Polarization Angle: "$polarization_angle "degrees"
 echo "Coherent Peak position: "$COHERENT_PEAK
 echo "----------------------------------------------"
@@ -850,6 +855,10 @@ if [[ "$GENR" != "0" ]]; then
 		echo "configuring gen_amp"
 		STANDARD_NAME="gen_amp_"$STANDARD_NAME
 		cp $CONFIG_FILE ./$STANDARD_NAME.conf
+    elif [[ "$GENERATOR" == "gen_amp_V2" ]]; then
+		echo "configuring gen_amp_V2"
+		STANDARD_NAME="gen_amp_V2_"$STANDARD_NAME
+		cp $CONFIG_FILE ./$STANDARD_NAME.conf
     elif [[ "$GENERATOR" == "gen_2pi_amp" ]]; then
 		echo "configuring gen_2pi_amp"
 		STANDARD_NAME="gen_2pi_amp_"$STANDARD_NAME
@@ -1088,6 +1097,24 @@ if [[ "$GENR" != "0" ]]; then
 
 	echo gen_amp -c $STANDARD_NAME.conf -hd $STANDARD_NAME.hddm -o $STANDARD_NAME.root -n $EVT_TO_GEN -r $RUN_NUMBER -a $GEN_MIN_ENERGY -b $GEN_MAX_ENERGY -p $COHERENT_PEAK -m $eBEAM_ENERGY  $optionals_line
 	gen_amp -c $STANDARD_NAME.conf -hd $STANDARD_NAME.hddm -o $STANDARD_NAME.root -n $EVT_TO_GEN -r $RUN_NUMBER -a $GEN_MIN_ENERGY -b $GEN_MAX_ENERGY -p $COHERENT_PEAK -m $eBEAM_ENERGY $optionals_line
+	generator_return_code=$?
+	elif [[ "$GENERATOR" == "gen_amp_V2" ]]; then
+	echo "RUNNING GEN_AMP_V2"
+     optionals_line=`head -n 1 $STANDARD_NAME.conf | sed -r 's/.//'`
+	echo $optionals_line
+	echo "Beam Config:"
+	more $STANDARD_NAME'_beam.config'
+	echo "pre run seds"
+	sed -i 's/TEMPBEAMCONFIG/'$STANDARD_NAME'_beam.conf/' $STANDARD_NAME.conf
+                if [[ "$polarization_angle" == "-1.0" ]]; then
+                        sed -i 's/TEMPPOLFRAC/'0'/' $STANDARD_NAME.conf
+                        sed -i 's/TEMPPOLANGLE/'0'/' $STANDARD_NAME.conf
+                else
+                        sed -i 's/TEMPPOLFRAC/'.4'/' $STANDARD_NAME.conf
+                        sed -i 's/TEMPPOLANGLE/'$polarization_angle'/' $STANDARD_NAME.conf
+                fi
+	echo gen_amp_V2 -ac $STANDARD_NAME.conf -hd $STANDARD_NAME.hddm -o $STANDARD_NAME.root -uv $UPPER_VERTEX_INDICES -lv $LOWER_VERTEX_INDICES -n $EVT_TO_GEN -r $RUN_NUMBER -a $GEN_MIN_ENERGY -b $GEN_MAX_ENERGY -p $COHERENT_PEAK -m $eBEAM_ENERGY $optionals_line
+	gen_amp_V2 -ac $STANDARD_NAME.conf -hd $STANDARD_NAME.hddm -o $STANDARD_NAME.root -uv $UPPER_VERTEX_INDICES -lv $LOWER_VERTEX_INDICES -n $EVT_TO_GEN -r $RUN_NUMBER -a $GEN_MIN_ENERGY -b $GEN_MAX_ENERGY -p $COHERENT_PEAK -m $eBEAM_ENERGY $optionals_line
 	generator_return_code=$?
 	elif [[ "$GENERATOR" == "gen_2pi_amp" ]]; then
 	echo "RUNNING GEN_2PI_AMP"
