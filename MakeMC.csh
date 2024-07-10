@@ -3,7 +3,7 @@
 echo `date`
 
 if ($?SINGULARITY_NAME) then
-  echo "RUNNING IN A SINGULARITY CONTAINER: "$SINGULARITY_NAME
+	echo "RUNNING IN A SINGULARITY CONTAINER: "$SINGULARITY_NAME
 endif
 
 
@@ -181,7 +181,7 @@ if ( -f /usr/lib64/libXrdPosixPreload.so && "$BKGFOLDSTR" != "None" ) then
 	echo "XROOTD is available for use if needed..."
 
 	if ( "$BKGFOLDSTR" == "Random" ) then
-		
+
 		set con_test=`ls $XRD_RANDOMS_URL/random_triggers/$RANDBGTAG/run$formatted_runNumber\_random.hddm | head -c 1`
 
 		if ( $con_test != "r" ) then
@@ -860,7 +860,7 @@ if ( "$GENR" != "0" ) then
     else if ( "$GENERATOR" == "gen_amp_V2") then
 		echo "configuring gen_amp_V2"
 		set STANDARD_NAME="gen_amp_V2_"$STANDARD_NAME
-		cp $CONFIG_FILE ./$STANDARD_NAME.conf      
+		cp $CONFIG_FILE ./$STANDARD_NAME.conf
     else if ( "$GENERATOR" == "gen_2pi_amp" ) then
 		echo "configuring gen_2pi_amp"
 		set STANDARD_NAME="gen_2pi_amp_"$STANDARD_NAME
@@ -1798,7 +1798,7 @@ if ( "$RECON" != "0" ) then
 		else
 			source $ANAENVIRONMENT
 		endif
-		
+
 		if ( "$ccdbSQLITEPATH" != "no_sqlite" && "$ccdbSQLITEPATH" != "batch_default" && "$ccdbSQLITEPATH" != "jlab_batch_default" ) then
 			if (`$USER_STAT --file-system --format=%T $PWD` == "lustre" ) then
 				echo "Attempting to use sqlite on a lustre file system. This does not work.  Try running on a different file system!"
