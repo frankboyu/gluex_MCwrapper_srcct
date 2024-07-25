@@ -732,7 +732,7 @@ if [[ "$GENR" != "0" ]]; then
 
 	gen_pre=`echo $GENERATOR | cut -c1-4`
 
-    if [[ "$gen_pre" != "file" && "$GENERATOR" != "genr8" && "$GENERATOR" != "bggen" && "$GENERATOR" != "genEtaRegge" && "$GENERATOR" != "gen_2pi_amp" && "$GENERATOR" != "gen_pi0" && "$GENERATOR" != "gen_2pi_primakoff" && "$GENERATOR" != "gen_2pi0_primakoff" && "$GENERATOR" != "gen_omega_3pi" && "$GENERATOR" != "gen_omegapi" && "$GENERATOR" != "gen_2k" && "$GENERATOR" != "bggen_jpsi" && "$GENERATOR" != "gen_ee" && "$GENERATOR" != "gen_ee_hb" && "$GENERATOR" != "particle_gun" && "$GENERATOR" != "geantBEAM" && "$GENERATOR" != "bggen_phi_ee" && "$GENERATOR" != "genBH" && "$GENERATOR" != "gen_omega_radiative" && "$GENERATOR" != "gen_amp" && "$GENERATOR" != "genr8_new" && "$GENERATOR" != "gen_compton" && "$GENERATOR" != "gen_npi" && "$GENERATOR" != "gen_compton_simple" && "$GENERATOR" != "gen_primex_eta_he4" && "$GENERATOR" != "gen_whizard" && "$GENERATOR" != "mc_gen" && "$GENERATOR" != "gen_vec_ps" && "$GENERATOR" != "bggen_upd" && "$GENERATOR" != "python" && "$GENERATOR" != "gen_gcf" && "$GENERATOR" != "gen_ALP" && "$GENERATOR" != "gen_MF"]]; then
+    if [[ "$gen_pre" != "file" && "$GENERATOR" != "genr8" && "$GENERATOR" != "bggen" && "$GENERATOR" != "genEtaRegge" && "$GENERATOR" != "gen_2pi_amp" && "$GENERATOR" != "gen_pi0" && "$GENERATOR" != "gen_2pi_primakoff" && "$GENERATOR" != "gen_2pi0_primakoff" && "$GENERATOR" != "gen_omega_3pi" && "$GENERATOR" != "gen_omegapi" && "$GENERATOR" != "gen_2k" && "$GENERATOR" != "bggen_jpsi" && "$GENERATOR" != "gen_ee" && "$GENERATOR" != "gen_ee_hb" && "$GENERATOR" != "particle_gun" && "$GENERATOR" != "geantBEAM" && "$GENERATOR" != "bggen_phi_ee" && "$GENERATOR" != "genBH" && "$GENERATOR" != "gen_omega_radiative" && "$GENERATOR" != "gen_amp" && "$GENERATOR" != "genr8_new" && "$GENERATOR" != "gen_compton" && "$GENERATOR" != "gen_npi" && "$GENERATOR" != "gen_compton_simple" && "$GENERATOR" != "gen_primex_eta_he4" && "$GENERATOR" != "gen_whizard" && "$GENERATOR" != "mc_gen" && "$GENERATOR" != "gen_vec_ps" && "$GENERATOR" != "bggen_upd" && "$GENERATOR" != "python" && "$GENERATOR" != "gen_gcf" && "$GENERATOR" != "gen_ALP" && "$GENERATOR" != "gen_MF" ]]; then
 		echo "NO VALID GENERATOR GIVEN"
 		echo "only [genr8, bggen, genEtaRegge, gen_2pi_amp, gen_pi0, gen_omega_3pi, gen_2k, bggen_jpsi, gen_ee, gen_ee_hb,  bggen_phi_ee, particle_gun, geantBEAM, genBH, gen_omega_radiative, gen_amp, gen_compton, gen_npi, gen_compton_simple, gen_primex_eta_he4, gen_whizard, gen_omegapi, mc_gen, gen_vec_ps, bggen_upd, python, gen_gcf, gen_ALP, gen_MF] are supported"
 		exit 1
@@ -999,7 +999,7 @@ if [[ "$GENR" != "0" ]]; then
 
 		cp $CONFIG_FILE ./cobrems.root
 	elif [[ "$GENERATOR" == "python" ]]; then
-		echo "configuring python script"
+	        echo "configuring python script"
 		STANDARD_NAME="python_"$STANDARD_NAME
 		cp $CONFIG_FILE ./$STANDARD_NAME.py
 	elif [[ "$GENERATOR" == "gen_gcf" ]]; then
@@ -1387,7 +1387,7 @@ if [[ "$GENR" != "0" ]]; then
 		generator_return_code=$?
 	elif [[ "$GENERATOR" == "python" ]]; then
 		RANDOMnum=`bash -c 'echo $RANDOM'`
-		optionals_line=`head -n 1 $STANDARD_NAME.py | sed -r 's/.//'`
+	        optionals_line=`head -n 1 $STANDARD_NAME.py | sed -r 's/.//'`
 		sed -i 's/TEMPBEAMCONFIG/'$STANDARD_NAME'_beam.conf/' $STANDARD_NAME.py
 		echo $GENERATOR $STANDARD_NAME.py --run $formatted_runNumber --nevents $EVT_TO_GEN --out $STANDARD_NAME.hddm --seed $RANDOMnum $optionals_line
 		$GENERATOR $STANDARD_NAME.py --run $formatted_runNumber --nevents $EVT_TO_GEN --out $STANDARD_NAME.hddm --seed $RANDOMnum $optionals_line
