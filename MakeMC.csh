@@ -1913,7 +1913,7 @@ endif #close geantBEAM if
 						echo $filetomv
 						set hdroot_test=`echo $filetomv | grep 'hd_root_\|hd_root.root'`
 						set thrown_test=`echo $filetomv | grep tree_thrown`
-						set gen_test=`echo $filetomv | grep gen_`
+						set gen_test=`echo $filetomv | grep genOut`
 						set reaction_test=`echo $filetomv | grep tree_`
 						set std_name_test=`echo $filetomv | grep $STANDARD_NAME`
 						#echo hdroot_test = $hdroot_test
@@ -1958,7 +1958,7 @@ endif #close geantBEAM if
 				end
 	    endif
 
-
+rm -rf *.astate
 rm -rf .hdds_tmp_*
 rm -rf ccdb.sqlite
 rm -rf rcdb.sqlite
@@ -1983,6 +1983,7 @@ if ( "$hddmfiles" != "" ) then
 endif
 
 cd ..
+rm -rf *.astate
 rm -rf .hdds_tmp_*
 if ( `ls $RUNNING_DIR/${RUN_NUMBER}_${FILE_NUMBER} | wc -l` == 0 ) then
 	rm -rf $RUNNING_DIR/${RUN_NUMBER}_${FILE_NUMBER}

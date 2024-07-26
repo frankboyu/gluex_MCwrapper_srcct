@@ -1944,7 +1944,7 @@ fi
 				echo $filetomv
 			    hdroot_test=`echo $filetomv | grep 'hd_root_\|hd_root.root'`
 				thrown_test=`echo $filetomv | grep tree_thrown`
-				gen_test=`echo $filetomv | grep gen_`
+				gen_test=`echo $filetomv | grep genOut`
 				reaction_test=`echo $filetomv | grep tree_`
 				std_name_test=`echo $filetomv | grep $STANDARD_NAME`
 				#echo hdroot_test = $hdroot_test
@@ -1979,7 +1979,7 @@ fi
 			fi
 		done
 	fi
-
+rm -rf *.astate
 rm -rf .hdds_tmp_*
 rm -rf ccdb.sqlite
 rm -rf rcdb.sqlite
@@ -2044,7 +2044,7 @@ if [[ $transfer_return_code != 0 ]]; then
 fi
 fi
 cd ..
-
+rm -rf *.astate
 rm -rf .hdds_tmp_*
 
 if [[ `ls $RUNNING_DIR/${RUN_NUMBER}_${FILE_NUMBER} | wc -l` == 0 ]]; then
