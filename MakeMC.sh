@@ -1980,6 +1980,7 @@ fi
 		done
 	fi
 rm -rf *.astate
+rm -rf *.astate
 rm -rf .hdds_tmp_*
 rm -rf ccdb.sqlite
 rm -rf rcdb.sqlite
@@ -2044,6 +2045,7 @@ if [[ $transfer_return_code != 0 ]]; then
 fi
 fi
 cd ..
+rm -rf *.astate
 rm -rf *.astate
 rm -rf .hdds_tmp_*
 
