@@ -12,22 +12,6 @@ setenv BATCHRUN $1
 shift
 setenv ENVIRONMENT $1
 shift
-
-if ( "$BATCHRUN" != "0" || $?SINGULARITY_NAME ) then
-	echo "Clean up current environment..."
-	source /group/halld/Software/build_scripts/gluex_env_clean.csh
-	echo "Setting up new environment..."
-	set xmltest=`echo $ENVIRONMENT | rev | cut -c -4 | rev`
-	if ( "$xmltest" == ".xml" ) then
-		echo source /group/halld/Software/build_scripts/gluex_env_jlab.csh $ENVIRONMENT
-		source /group/halld/Software/build_scripts/gluex_env_jlab.csh $ENVIRONMENT
-	else
-		echo source $ENVIRONMENT
-		source $ENVIRONMENT
-	endif
-endif
-set runningOS=`$BUILD_SCRIPTS/osrelease.pl`
-
 setenv ANAENVIRONMENT $1
 shift
 setenv GENERATOR_OS $1
@@ -62,6 +46,11 @@ else
 	set wholecontext = "variation=$VERSION"
 endif
 setenv JANA_CALIB_CONTEXT "$wholecontext"
+
+if ( "$VERSION" == "mc_cpp" ) then
+	echo "ERROR: variation=mc_cpp is deprecated and unsupported. Use variation=mc and set EXPERIMENT=CPP in MC.config."
+	exit 1
+endif
 shift
 setenv GENR $1
 shift
@@ -143,6 +132,8 @@ setenv POL_TO_GEN $1
 shift
 setenv POL_HIST $1
 shift
+setenv CCDB_FLUX_VER $1
+shift
 setenv eBEAM_CURRENT $1
 shift
 setenv EXPERIMENT $1
@@ -168,6 +159,34 @@ shift
 setenv PROJECT_DIR_NAME $1
 shift
 setenv RANDBGRATE $1
+shift
+setenv SIMENVIRONMENT $1
+shift
+setenv GENERATOR_FILE_SKIP $1
+
+if ( "$GENERATOR_FILE_SKIP" == "" ) then
+	setenv GENERATOR_FILE_SKIP "-1"
+endif
+
+setenv RUNNING_ENVIRONMENT $ENVIRONMENT
+if ( "$SIMENVIRONMENT" != "no_Sim_env" && "$SIMENVIRONMENT" != "" ) then
+	setenv RUNNING_ENVIRONMENT $SIMENVIRONMENT
+endif
+
+if ( "$BATCHRUN" != "0" || $?SINGULARITY_NAME ) then
+	echo "Clean up current environment..."
+	source /group/halld/Software/build_scripts/gluex_env_clean.csh
+	echo "Setting up new environment..."
+	set xmltest=`echo $RUNNING_ENVIRONMENT | rev | cut -c -4 | rev`
+	if ( "$xmltest" == ".xml" ) then
+		echo source /group/halld/Software/build_scripts/gluex_env_jlab.csh $RUNNING_ENVIRONMENT
+		source /group/halld/Software/build_scripts/gluex_env_jlab.csh $RUNNING_ENVIRONMENT
+	else
+		echo source $RUNNING_ENVIRONMENT
+		source $RUNNING_ENVIRONMENT
+	endif
+endif
+set runningOS=`$BUILD_SCRIPTS/osrelease.pl`
 
 setenv USER_BC `which bc`
 setenv USER_PYTHON `which python`
@@ -224,7 +243,7 @@ endif
 #necessary to run swif, uses local directory if swif=0 is used
 if ( "$BATCHRUN" != "0" ) then
 	# ENVIRONMENT
-	echo $ENVIRONMENT
+	echo $RUNNING_ENVIRONMENT
 	echo pwd=$PWD
 	mkdir -p $OUTDIR
 	mkdir -p $OUTDIR/log
@@ -280,7 +299,11 @@ else if ( "$ccdbSQLITEPATH" == "jlab_batch_default" ) then
 endif
 
 
-#setenv JANA_GEOMETRY_URL "ccdb:///GEOMETRY/main_HDDS.xml context=\"$VERSION\""
+set GEOMETRY_CCDB_PATH="GEOMETRY/main_HDDS.xml"
+if ( "$EXPERIMENT" == "CPP" ) then
+	set GEOMETRY_CCDB_PATH="GEOMETRY/cpp_HDDS.xml"
+endif
+setenv JANA_GEOMETRY_URL "ccdb:///$GEOMETRY_CCDB_PATH"
 #xrdcopy $XRD_RANDOMS_URL/ccdb.sqlite ./
 #setenv CCDB_CONNECTION sqlite:///$PWD/ccdb.sqlite
 #setenv JANA_CALIB_URL ${CCDB_CONNECTION}
@@ -319,9 +342,9 @@ endif
 # Define running command for generation, needed to run inside a container
 set runGen=''
 if ( "$GENERATOR_OS" == "CENTOS7" ) then
-	set runGen="/gluex_install/gxrun/gxrun -os 7 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $ENVIRONMENT"
+	set runGen="/gluex_install/gxrun/gxrun -os 7 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $RUNNING_ENVIRONMENT"
 else if ( "$GENERATOR_OS" == "ALMA9" && "$runningOS" != "Linux_Alma9-x86_64-gcc11.5.0-cntr" ) then
-	set runGen="/gluex_install/gxrun/gxrun -os 9 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $ENVIRONMENT"
+	set runGen="/gluex_install/gxrun/gxrun -os 9 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $RUNNING_ENVIRONMENT"
 endif
 echo "============================"
 echo "running command:"
@@ -331,9 +354,9 @@ echo "============================"
 # defining running command for postprocessing, needed to run inside a container
 set runPostgen=''
 if ( "$POSTGEN_OS" == "CENTOS7" ) then
-	set runPostgen="/gluex_install/gxrun/gxrun -os 7 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $ENVIRONMENT"
+	set runPostgen="/gluex_install/gxrun/gxrun -os 7 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $RUNNING_ENVIRONMENT"
 else if ( "$POSTGEN_OS" == "ALMA9" && "$runningOS" != "Linux_Alma9-x86_64-gcc11.5.0-cntr" ) then
-	set runPostgen="/gluex_install/gxrun/gxrun -os 9 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $ENVIRONMENT"
+	set runPostgen="/gluex_install/gxrun/gxrun -os 9 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $RUNNING_ENVIRONMENT"
 endif
 echo "============================"
 echo "running command:"
@@ -343,9 +366,9 @@ echo "============================"
 # defining running command for simulation, needed to run inside a container
 set runSim=''
 if ( "$SIMULATION_OS" == "CENTOS7" ) then
-	set runSim="/gluex_install/gxrun/gxrun -os 7 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $ENVIRONMENT"
+	set runSim="/gluex_install/gxrun/gxrun -os 7 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $RUNNING_ENVIRONMENT"
 else if ( "$SIMULATION_OS" == "ALMA9" && "$runningOS" != "Linux_Alma9-x86_64-gcc11.5.0-cntr" ) then
-	set runSim="/gluex_install/gxrun/gxrun -os 9 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $ENVIRONMENT"
+	set runSim="/gluex_install/gxrun/gxrun -os 9 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $RUNNING_ENVIRONMENT"
 endif
 echo "============================"
 echo "running command:"
@@ -355,9 +378,9 @@ echo "============================"
 # defining running command, needed to run inside a container
 set runSmear=''
 if ( "$MCSMEAR_OS" == "CENTOS7" ) then
-	set runSmear="/gluex_install/gxrun/gxrun -os 7 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $ENVIRONMENT"
+	set runSmear="/gluex_install/gxrun/gxrun -os 7 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $RUNNING_ENVIRONMENT"
 else if ( "$MCSMEAR_OS" == "ALMA9" && "$runningOS" != "Linux_Alma9-x86_64-gcc11.5.0-cntr" ) then
-	set runSmear="/gluex_install/gxrun/gxrun -os 9 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $ENVIRONMENT"
+	set runSmear="/gluex_install/gxrun/gxrun -os 9 --env JANA_CALIB_CONTEXT=$JANA_CALIB_CONTEXT,CCDB_CONNECTION=$CCDB_CONNECTION,JANA_CALIB_URL=$JANA_CALIB_URL,RCDB_CONNECTION=$RCDB_CONNECTION,LD_PRELOAD=$LD_PRELOAD,XRD_RANDOMS_URL=$XRD_RANDOMS_URL,RANDOMS_PREPEND=$RANDOMS_PREPEND -v $RUNNING_ENVIRONMENT"
 endif
 echo "============================"
 echo "running command:"
@@ -379,7 +402,7 @@ set gen_pre_rcdb=`echo $GENERATOR | cut -c1-4`
 if ( $gen_pre_rcdb != "file" || ( "$BGTAGONLY_OPTION" == "1" || "$BKGFOLDSTR" == "BeamPhotons" ) ) then
 	set radthick="50.e-6"
 
-	if ( "$RADIATOR_THICKNESS" != "rcdb" || ( "$VERSION" != "mc" && "$VERSION" != "mc_workfest2018" && "$VERSION" != "mc_cpp" && "$VERSION" != "mc_JEF" ) ) then
+	if ( "$RADIATOR_THICKNESS" != "rcdb" || ( "$VERSION" != "mc" && "$VERSION" != "mc_workfest2018" && "$VERSION" != "mc_JEF" && "$VERSION" != "mc_2017_01_ver05" ) ) then
 		set radthick=$RADIATOR_THICKNESS
 	else
 		set words = `$runGen rcnd $RUN_NUMBER radiator_type | tail -n1 | sed 's/ / /g' `
@@ -435,7 +458,7 @@ if ( $gen_pre_rcdb != "file" || ( "$BGTAGONLY_OPTION" == "1" || "$BKGFOLDSTR" ==
 
 	#echo "text: " $elecE_text
 
-	if ( "$eBEAM_ENERGY" != "rcdb" || ( "$VERSION" != "mc" && "$VERSION" != "mc_workfest2018" && "$VERSION" != "mc_cpp" && "$VERSION" != "mc_JEF" ) ) then
+	if ( "$eBEAM_ENERGY" != "rcdb" || ( "$VERSION" != "mc" && "$VERSION" != "mc_workfest2018" && "$VERSION" != "mc_JEF" && "$VERSION" != "mc_2017_01_ver05" ) ) then
 		set elecE=$eBEAM_ENERGY
 	else if ( $elecE_text == "Run" ) then
 		set elecE=12
@@ -453,7 +476,7 @@ if ( $gen_pre_rcdb != "file" || ( "$BGTAGONLY_OPTION" == "1" || "$BKGFOLDSTR" ==
 	if ( "$COHERENT_PEAK" != "rcdb" && "$polarization_angle" == "-1.0" ) then
 		set copeak=$COHERENT_PEAK
 	else
-		if ( "$COHERENT_PEAK" != "rcdb" || ( "$VERSION" != "mc" && "$VERSION" != "mc_workfest2018" && "$VERSION" != "mc_cpp" && "$VERSION" != "mc_JEF" ) ) then
+		if ( "$COHERENT_PEAK" != "rcdb" || ( "$VERSION" != "mc" && "$VERSION" != "mc_workfest2018" && "$VERSION" != "mc_JEF" && "$VERSION" != "mc_2017_01_ver05" ) ) then
 			set copeak=$COHERENT_PEAK
 		else if ( $copeak_text == "Run" ) then
 			set copeak=9
@@ -473,7 +496,7 @@ if ( $gen_pre_rcdb != "file" || ( "$BGTAGONLY_OPTION" == "1" || "$BKGFOLDSTR" ==
 	#echo $copeak
 	#set copeak=`$runGen rcnd $RUN_NUMBER coherent_peak | tail -n1 | awk '{print $1}' | sed 's/\.//g' #| awk -vFS="" -vOFS="" '{$1=$1"."}1' `
 
-	if ( ( "$VERSION" != "mc" && "$VERSION" != "mc_cpp" && "$VERSION" != "mc_JEF" && "$VERSION" != "mc_workfest2018" ) && "$COHERENT_PEAK" == "rcdb" ) then
+	if ( ( "$VERSION" != "mc" && "$VERSION" != "mc_JEF" && "$VERSION" != "mc_workfest2018" && "$VERSION" != "mc_2017_01_ver05" ) && "$COHERENT_PEAK" == "rcdb" ) then
 		echo "error in requesting rcdb for the coherent peak and not using variation=mc"
 		echo "something went wrong with initialization"
 		exit 1
@@ -481,7 +504,7 @@ if ( $gen_pre_rcdb != "file" || ( "$BGTAGONLY_OPTION" == "1" || "$BKGFOLDSTR" ==
 
 	setenv eBEAM_ENERGY $elecE
 	echo "eBEAM energy set..."
-	if ( ( "$VERSION" != "mc" && "$VERSION" != "mc_cpp" && "$VERSION" != "mc_JEF" && "$VERSION" != "mc_workfest2018" ) && "$eBEAM_ENERGY" == "rcdb" ) then
+	if ( ( "$VERSION" != "mc" && "$VERSION" != "mc_JEF" && "$VERSION" != "mc_workfest2018" && "$VERSION" != "mc_2017_01_ver05" ) && "$eBEAM_ENERGY" == "rcdb" ) then
 		echo "error in requesting rcdb for the electron beam energy and not using variation=mc"
 		exit 1
 	endif
@@ -517,7 +540,7 @@ if ( $gen_pre_rcdb != "file" || ( "$BGTAGONLY_OPTION" == "1" || "$BKGFOLDSTR" ==
 
 	set BGRATE_toUse=$BGRATE
 
-	if ( "$BGRATE" != "rcdb" || ( "$VERSION" != "mc" && "$VERSION" != "mc_workfest2018" && "$VERSION" != "mc_cpp" && "$VERSION" != "mc_JEF" ) ) then
+	if ( "$BGRATE" != "rcdb" || ( "$VERSION" != "mc" && "$VERSION" != "mc_workfest2018" && "$VERSION" != "mc_JEF" && "$VERSION" != "mc_2017_01_ver05" ) ) then
 		set BGRATE_toUse=$BGRATE
 	else
 		if ( $BGTAGONLY_OPTION == "1" || $BKGFOLDSTR == "BeamPhotons" ) then
@@ -560,7 +583,8 @@ echo "Containing: " $EVT_TO_GEN"/""$PER_FILE"" events"
 echo "Running location:" $RUNNING_DIR
 echo "Output location: "$OUTDIR
 echo "Project directory name: "$PROJECT_DIR_NAME
-echo "Environment file: " $ENVIRONMENT
+echo "Recon Environment file: " $ENVIRONMENT
+echo "Sim Environment file: " $RUNNING_ENVIRONMENT
 echo "Analysis Environment file: " $ANAENVIRONMENT
 echo "Context: "$JANA_CALIB_CONTEXT
 echo "Geometry URL: "$JANA_GEOMETRY_URL
@@ -579,6 +603,9 @@ echo "Coherent Peak position: "$COHERENT_PEAK
 echo "----------------------------------------------"
 echo "Run generation step? "$GENR" Will be cleaned?" $CLEANGENR
 echo "Flux Hist to use: " "$FLUX_TO_GEN" " : " "$FLUX_HIST"
+if ( "$FLUX_TO_GEN" == "ccdb" ) then
+	echo "  Using $CCDB_FLUX_VER flux table"
+endif
 echo "Polarization to use: " "$POL_TO_GEN" " : " "$POL_HIST"
 echo "Using "$GENERATOR" with config: "$CONFIG_FILE
 echo "Will run "$GENERATOR_POST" postprocessing after generator with configuration: "$GENERATOR_POST_CONFIG", event definitions: "$GENERATOR_POST_CONFIGEVT" and decay definitions: "$GENERATOR_POST_CONFIGDEC
@@ -872,7 +899,20 @@ if ( "$GENR" != "0" ) then #run generation
 
 	if ( "$FLUX_TO_GEN" == "ccdb" ) then
 		echo "CCDBRunNumber $RUN_NUMBER" >>! beam.config
-		echo "ROOTFluxFile $FLUX_TO_GEN" >>! beam.config
+
+		if ( "$CCDB_FLUX_VER" == "tagged" ) then
+			# The implementation of the tagged photon flux in the BeamProperties class was only added with
+			# halld_sim version 5.5.1. We should have some check in place to make sure the user-requested version
+			# is compatible with the tagged-flux option if it's requested.
+			echo "ROOTFluxFile tagged-ccdb" >>! beam.config
+		else if ( "$CCDB_FLUX_VER" == "untagged" ) then
+			echo "ROOTFluxFile ccdb" >>! beam.config
+		else
+			echo "Invalid CCDB_FLUX_VER provided ($CCDB_FLUX_VER). Should be either tagged or untagged."
+			echo "something went wrong with initialization"
+			exit 1
+		endif
+
 		if ( "$POL_TO_GEN" == "ccdb" ) then
 			echo "ROOTPolFile $POL_TO_GEN" >>! beam.config
 		else if ( "$POL_HIST" == "unset" ) then
@@ -1000,6 +1040,10 @@ if ( "$GENR" != "0" ) then #run generation
 	else if ( "$GENERATOR" == "gen_primex_eta_he4" ) then
 		echo "configuring gen_primex_eta_he4"
 		STANDARD_NAME="gen_primex_eta_he4_"$STANDARD_NAME
+		cp $CONFIG_FILE ./$STANDARD_NAME.conf
+	else if ( "$GENERATOR" == "gen_generic_root" ) then
+		echo "configuring gen_generic_root"
+		STANDARD_NAME="gen_generic_root_"$STANDARD_NAME
 		cp $CONFIG_FILE ./$STANDARD_NAME.conf
 	else if ( "$GENERATOR" == "gen_whizard" ) then
 		echo "configuring gen_whizard"
@@ -1365,6 +1409,7 @@ if ( "$GENR" != "0" ) then #run generation
 		echo $runGen gen_compton_simple -c $STANDARD_NAME'_beam.conf' -hd $STANDARD_NAME.hddm -o $STANDARD_NAME.root -n $EVT_TO_GEN -r $RUN_NUMBER -a $GEN_MIN_ENERGY -b $GEN_MAX_ENERGY -p $COHERENT_PEAK -s $formatted_fileNumber -m $eBEAM_ENERGY $optionals_line
 		$runGen gen_compton_simple -c $STANDARD_NAME'_beam.conf' -hd $STANDARD_NAME.hddm -o $STANDARD_NAME.root -n $EVT_TO_GEN -r $RUN_NUMBER -a $GEN_MIN_ENERGY -b $GEN_MAX_ENERGY -p $COHERENT_PEAK -s $formatted_fileNumber -m $eBEAM_ENERGY $optionals_line
 		set generator_return_code=$status
+		
 	else if ( "$GENERATOR" == "gen_primex_eta_he4" ) then
 		echo "RUNNING GEN_PRIMEX_ETA_HE4"
 		set optionals_line=`head -n 1 $STANDARD_NAME.conf | sed -r 's/.//'`
@@ -1373,7 +1418,17 @@ if ( "$GENR" != "0" ) then #run generation
 		echo $runGen gen_primex_eta_he4 -e $STANDARD_NAME.conf -c $STANDARD_NAME'_beam.conf' -hd $STANDARD_NAME.hddm -o $STANDARD_NAME.txt -n $EVT_TO_GEN -r $RUN_NUMBER -a $GEN_MIN_ENERGY -b $GEN_MAX_ENERGY -s $formatted_fileNumber -m $eBEAM_ENERGY $optionals_line
 		$runGen gen_primex_eta_he4 -e $STANDARD_NAME.conf -c $STANDARD_NAME'_beam.conf' -hd $STANDARD_NAME.hddm -o $STANDARD_NAME.txt -n $EVT_TO_GEN -r $RUN_NUMBER -a $GEN_MIN_ENERGY -b $GEN_MAX_ENERGY -s $formatted_fileNumber -m $eBEAM_ENERGY $optionals_line
 		set generator_return_code=$status
-	else if ( "$GENERATOR" == "gen_whizard" ) then
+		
+	else if ( "$GENERATOR" == "gen_generic_root" ) then
+		echo "RUNNING GEN_GENERIC_ROOT"
+		set optionals_line=`head -n 1 $STANDARD_NAME.conf | sed -r 's/.//'`
+		echo $optionals_line
+		sed -i 's/TEMPBEAMCONFIG/'$STANDARD_NAME'_beam.conf/' $STANDARD_NAME.conf
+		echo $runGen gen_generic_root -e $STANDARD_NAME.conf -c $STANDARD_NAME'_beam.conf' -hd $STANDARD_NAME.hddm -o $STANDARD_NAME.txt -n $EVT_TO_GEN -r $RUN_NUMBER -a $GEN_MIN_ENERGY -b $GEN_MAX_ENERGY -s $formatted_fileNumber -m $eBEAM_ENERGY $optionals_line
+		$runGen gen_generic_root -e $STANDARD_NAME.conf -c $STANDARD_NAME'_beam.conf' -hd $STANDARD_NAME.hddm -o $STANDARD_NAME.txt -n $EVT_TO_GEN -r $RUN_NUMBER -a $GEN_MIN_ENERGY -b $GEN_MAX_ENERGY -s $formatted_fileNumber -m $eBEAM_ENERGY $optionals_line
+		set generator_return_code=$status
+		
+	 else if ( "$GENERATOR" == "gen_whizard" ) then
 		echo "RUNNING GEN_WHIZARD"
 		set optionals_line=`head -n 1 $STANDARD_NAME.conf | sed -r 's/.//'`
 		echo $optionals_line
@@ -1381,6 +1436,7 @@ if ( "$GENR" != "0" ) then #run generation
 		echo $runGen gen_whizard -e $STANDARD_NAME.conf -c $STANDARD_NAME'_beam.conf' -hd $STANDARD_NAME.hddm -o $STANDARD_NAME.txt -n $EVT_TO_GEN -r $RUN_NUMBER -a $GEN_MIN_ENERGY -b $GEN_MAX_ENERGY -s $formatted_fileNumber -m $eBEAM_ENERGY $optionals_line
 		$runGen gen_whizard -e $STANDARD_NAME.conf -c $STANDARD_NAME'_beam.conf' -hd $STANDARD_NAME.hddm -o $STANDARD_NAME.txt -n $EVT_TO_GEN -r $RUN_NUMBER -a $GEN_MIN_ENERGY -b $GEN_MAX_ENERGY -s $formatted_fileNumber -m $eBEAM_ENERGY $optionals_line
 		set generator_return_code=$status
+		
 	else if ( "$GENERATOR" == "gen_npi" ) then
 		echo "RUNNING GEN_NPI"
 		set optionals_line=`head -n 1 $STANDARD_NAME.conf | sed -r 's/.//'`
@@ -1582,6 +1638,9 @@ if ( "$GENERATOR_POST" != "No" && "$GENR" != "0" ) then #run postprocessing
 				exit 1
 			endif
 			setenv EVTGEN_PARTICLE_DEFINITIONS $PWD/postevt'_'$GENERATOR_POST'_'$formatted_runNumber'_'$formatted_fileNumber.conf
+			if ( "$runPostgen" != "" ) then
+				set runPostgen="$runPostgen EVTGEN_PARTICLE_DEFINITIONS=$EVTGEN_PARTICLE_DEFINITIONS"
+			endif
 		endif
 		if ( "$GENERATOR_POST_CONFIGDEC" != "Default" ) then
 			cp $GENERATOR_POST_CONFIGDEC ./postdec'_'$GENERATOR_POST'_'$formatted_runNumber'_'$formatted_fileNumber.conf
@@ -1590,6 +1649,9 @@ if ( "$GENERATOR_POST" != "No" && "$GENR" != "0" ) then #run postprocessing
 				exit 1
 			endif
 			setenv EVTGEN_DECAY_FILE $PWD/postdec'_'$GENERATOR_POST'_'$formatted_runNumber'_'$formatted_fileNumber.conf
+			if ( "$runPostgen" != "" ) then
+				set runPostgen="$runPostgen EVTGEN_DECAY_FILE=$EVTGEN_DECAY_FILE"
+			endif
 		endif
 		echo $runPostgen decay_evtgen -o$STANDARD_NAME'_decay_evtgen'.hddm -upost'_'$GENERATOR_POST'_'$formatted_runNumber'_'$formatted_fileNumber.conf $STANDARD_NAME.hddm
 		$runPostgen decay_evtgen -o$STANDARD_NAME'_decay_evtgen'.hddm -upost'_'$GENERATOR_POST'_'$formatted_runNumber'_'$formatted_fileNumber.conf $STANDARD_NAME.hddm
@@ -1660,7 +1722,11 @@ if ( "$GEANT" != "0" && "$GENR" != "0" ) then #run geant
 	sed -i 's/TEMPNOSECONDARIES/'$GEANT_NOSECONDARIES'/' control'_'$formatted_runNumber'_'$formatted_fileNumber.in
 
 	if ( "$gen_pre" == "file" ) then
-		@ skip_num = $FILE_NUMBER * $PER_FILE
+		if ( "$GENERATOR_FILE_SKIP" != "-1" ) then
+			set skip_num=$GENERATOR_FILE_SKIP
+		else
+			@ skip_num = $FILE_NUMBER * $PER_FILE
+		endif
 		sed -i 's/TEMPSKIP/'$skip_num'/' control'_'$formatted_runNumber'_'$formatted_fileNumber.in
 
 	else if ( $GENERATOR == "particle_gun" ) then
@@ -1701,8 +1767,8 @@ if ( "$GEANT" != "0" && "$GENR" != "0" ) then #run geant
 
 
 	if ( "$GEANTVER" == "3" ) then
-		echo $runSim hdgeant -xml=ccdb://GEOMETRY/main_HDDS.xml,run=$RUN_NUMBER
-		$runSim hdgeant -xml=ccdb://GEOMETRY/main_HDDS.xml,run=$RUN_NUMBER
+		echo $runSim hdgeant -xml=ccdb://$GEOMETRY_CCDB_PATH,run=$RUN_NUMBER
+		$runSim hdgeant -xml=ccdb://$GEOMETRY_CCDB_PATH,run=$RUN_NUMBER
 		set geant_return_code=$status
 	else if ( "$GEANTVER" == "4" ) then
 		#make run.mac then call it below
@@ -1760,7 +1826,17 @@ else
 	#check if CONFIG_FILE ends with ".evio"
 	if ( "$GENR" != "0" && "$GEANT" != "0" && "$SMEAR" != "0" && "$CONFIG_FILE" !~ ".evio" ) then #run mcsmear
 		echo "RUNNING MCSMEAR"
-
+		
+		# Detect which version of jana is being used:
+		$runSmear jana -version
+		set jana_return_code=$status
+		if ( $jana_return_code != 0 ) then
+			set JANA_MAJOR_VERSION=2
+		else
+			set JANA_MAJOR_VERSION=0
+		endif
+		echo "Using JANA_MAJOR_VERSION: $JANA_MAJOR_VERSION"
+		
 		if ( "$GENR" == "0" && "$GEANT" == "0" ) then #obsolete, needs fixing
 			echo $GENERATOR
 			set geant_file=`echo $GENERATOR | cut -c 6-`
@@ -1769,8 +1845,16 @@ else
 		endif
 		if ( "$BKGFOLDSTR" == "BeamPhotons" || "$BKGFOLDSTR" == "None" || "$BKGFOLDSTR" == "TagOnly" ) then
 			echo "running MCsmear without folding in random background"
-			echo $runSmear ' mcsmear' $MCSMEAR_Flags' -PTHREAD_TIMEOUT_FIRST_EVENT=3600 -PTHREAD_TIMEOUT=3000 -o'$STANDARD_NAME'_geant'$GEANTVER'_smeared.hddm' $STANDARD_NAME'_geant'$GEANTVER'.hddm'
-			$runSmear mcsmear $MCSMEAR_Flags -PTHREAD_TIMEOUT_FIRST_EVENT=3600 -PTHREAD_TIMEOUT=3000 -o$STANDARD_NAME'_geant'$GEANTVER'_smeared.hddm' $STANDARD_NAME'_geant'$GEANTVER'.hddm'
+			
+			# Set timeout syntax according to which jana version is being used:
+			if ( $JANA_MAJOR_VERSION >= 0 ) then
+				set JANA_TIMEOUT_STR="-Pjana:warmup_timeout=3600 -Pjana:timeout=3000"
+			else
+				set JANA_TIMEOUT_STR="-PTHREAD_TIMEOUT_FIRST_EVENT=3600 -PTHREAD_TIMEOUT=3000"
+			endif
+			
+			echo "$runSmear mcsmear $MCSMEAR_Flags $JANA_TIMEOUT_STR -o$STANDARD_NAME"\_"geant$GEANTVER"\_"smeared.hddm $STANDARD_NAME"\_"geant$GEANTVER.hddm"
+			$runSmear mcsmear $MCSMEAR_Flags $JANA_TIMEOUT_STR -o$STANDARD_NAME\_geant$GEANTVER\_smeared.hddm $STANDARD_NAME\_geant$GEANTVER.hddm
 			set mcsmear_return_code=$status
 		else if ( "$BKGFOLDSTR" == "DEFAULT" || "$BKGFOLDSTR" == "Random" ) then
 			rm -f count.py
@@ -1788,16 +1872,23 @@ else
 			echo $totalnum
 
 			set fold_skip_num=`echo "($FILE_NUMBER * $PER_FILE)%$totalnum" | $USER_BC`
+			echo "skipping: $fold_skip_num"
 			#set bkglocstring="/w/halld-scifs17exp/halld2/home/tbritton/MCwrapper_Development/converted.hddm"
-
-
+			
+			# Set timeout syntax according to which jana version is being used:
+			if ( $JANA_MAJOR_VERSION >= 0 ) then
+				set JANA_TIMEOUT_STR="-Pjana:warmup_timeout=6400 -Pjana:timeout=6400"
+			else
+				set JANA_TIMEOUT_STR="-PTHREAD_TIMEOUT_FIRST_EVENT=6400 -PTHREAD_TIMEOUT=6400"
+			endif
+			
 			if ( $MAKE_MC_USING_XROOTD == 0 ) then
-				echo "$runSmear mcsmear "$MCSMEAR_Flags" -PTHREAD_TIMEOUT_FIRST_EVENT=6400 -PTHREAD_TIMEOUT=6400 -o$STANDARD_NAME"\_"geant$GEANTVER"\_"smeared.hddm $STANDARD_NAME"\_"geant$GEANTVER.hddm $bkglocstring"\:"$RANDBGRATE""+"$fold_skip_num
-				$runSmear mcsmear $MCSMEAR_Flags -PTHREAD_TIMEOUT_FIRST_EVENT=6400 -PTHREAD_TIMEOUT=6400 -o$STANDARD_NAME\_geant$GEANTVER\_smeared.hddm $STANDARD_NAME\_geant$GEANTVER.hddm $bkglocstring\:$RANDBGRATE\+$fold_skip_num
+				echo "$runSmear mcsmear $MCSMEAR_Flags $JANA_TIMEOUT_STR -o$STANDARD_NAME"\_"geant$GEANTVER"\_"smeared.hddm $STANDARD_NAME"\_"geant$GEANTVER.hddm $bkglocstring"\:"$RANDBGRATE""+"$fold_skip_num
+				$runSmear mcsmear $MCSMEAR_Flags $JANA_TIMEOUT_STR -o$STANDARD_NAME\_geant$GEANTVER\_smeared.hddm $STANDARD_NAME\_geant$GEANTVER.hddm $bkglocstring\:$RANDBGRATE\+$fold_skip_num
 				set mcsmear_return_code=$status
 			else
-				echo "$runSmear mcsmear $MCSMEAR_Flags -PTHREAD_TIMEOUT_FIRST_EVENT=6400 -PTHREAD_TIMEOUT=6400 -o$STANDARD_NAME\_geant$GEANTVER\_smeared.hddm $STANDARD_NAME\_geant$GEANTVER.hddm $XRD_RANDOMS_URL/random_triggers/$RANDBGTAG/run$formatted_runNumber\_random.hddm:$RANDBGRATE+$fold_skip_num"
-				$runSmear mcsmear $MCSMEAR_Flags -PTHREAD_TIMEOUT_FIRST_EVENT=6400 -PTHREAD_TIMEOUT=6400 -o$STANDARD_NAME\_geant$GEANTVER\_smeared.hddm $STANDARD_NAME\_geant$GEANTVER.hddm $XRD_RANDOMS_URL/random_triggers/$RANDBGTAG/run$formatted_runNumber\_random.hddm\:$RANDBGRATE\+$fold_skip_num
+				echo "$runSmear mcsmear $MCSMEAR_Flags $JANA_TIMEOUT_STR -o$STANDARD_NAME"\_"geant$GEANTVER"\_"smeared.hddm $STANDARD_NAME"\_"geant$GEANTVER.hddm $XRD_RANDOMS_URL/random_triggers/$RANDBGTAG/run$formatted_runNumber"\_"random.hddm:$RANDBGRATE"\+"$fold_skip_num"
+				$runSmear mcsmear $MCSMEAR_Flags $JANA_TIMEOUT_STR -o$STANDARD_NAME\_geant$GEANTVER\_smeared.hddm $STANDARD_NAME\_geant$GEANTVER.hddm $XRD_RANDOMS_URL/random_triggers/$RANDBGTAG/run$formatted_runNumber\_random.hddm\:$RANDBGRATE\+$fold_skip_num
 				set mcsmear_return_code=$status
 			endif
 
@@ -1812,15 +1903,30 @@ else
 				set totalnum=$RANDOM_TRIG_NUM_EVT
 			endif
 			set fold_skip_num=`echo "($FILE_NUMBER * $PER_FILE)%$totalnum" | $USER_BC`
-
-			echo "$runSmear mcsmear "$MCSMEAR_Flags" -PTHREAD_TIMEOUT_FIRST_EVENT=6400 -PTHREAD_TIMEOUT=6400 -o$STANDARD_NAME"\_"geant$GEANTVER"\_"smeared.hddm $STANDARD_NAME"\_"geant$GEANTVER.hddm $bkglocstring"\:"1""+"$fold_skip_num
-			$runSmear mcsmear $MCSMEAR_Flags -PTHREAD_TIMEOUT_FIRST_EVENT=6400 -PTHREAD_TIMEOUT=6400 -o$STANDARD_NAME\_geant$GEANTVER\_smeared.hddm $STANDARD_NAME\_geant$GEANTVER.hddm $bkglocstring\:1\+$fold_skip_num
+			
+			# Set timeout syntax according to which jana version is being used:
+			if ( $JANA_MAJOR_VERSION >= 0 ) then
+				set JANA_TIMEOUT_STR="-Pjana:warmup_timeout=6400 -Pjana:timeout=6400"
+			else
+				set JANA_TIMEOUT_STR="-PTHREAD_TIMEOUT_FIRST_EVENT=6400 -PTHREAD_TIMEOUT=6400"
+			endif
+			
+			echo "$runSmear mcsmear $MCSMEAR_Flags $JANA_TIMEOUT_STR -o$STANDARD_NAME"\_"geant$GEANTVER"\_"smeared.hddm $STANDARD_NAME"\_"geant$GEANTVER.hddm $bkglocstring"\:"1"\+"$fold_skip_num"
+			$runSmear mcsmear $MCSMEAR_Flags $JANA_TIMEOUT_STR -o$STANDARD_NAME\_geant$GEANTVER\_smeared.hddm $STANDARD_NAME\_geant$GEANTVER.hddm $bkglocstring\:1\+$fold_skip_num
 			set mcsmear_return_code=$status
 
 		else
 			#trust the user and use their string
-			echo '$runSmear mcsmear '$MCSMEAR_Flags' -PTHREAD_TIMEOUT_FIRST_EVENT=6400 -PTHREAD_TIMEOUT=6400 -o'$STANDARD_NAME'_geant'$GEANTVER'_smeared.hddm'' '$STANDARD_NAME'_geant'$GEANTVER'.hddm'' '$BKGFOLDSTR
-			$runSmear mcsmear $MCSMEAR_Flags -PTHREAD_TIMEOUT_FIRST_EVENT=6400 -PTHREAD_TIMEOUT=6400 -o$STANDARD_NAME'_geant'$GEANTVER'_smeared.hddm' $STANDARD_NAME'_geant'$GEANTVER'.hddm' $BKGFOLDSTR
+			
+			# Set timeout syntax according to which jana version is being used:
+			if ( $JANA_MAJOR_VERSION >= 0 ) then
+				set JANA_TIMEOUT_STR="-Pjana:warmup_timeout=6400 -Pjana:timeout=6400"
+			else
+				set JANA_TIMEOUT_STR="-PTHREAD_TIMEOUT_FIRST_EVENT=6400 -PTHREAD_TIMEOUT=6400"
+			endif
+			
+			echo "$runSmear mcsmear $MCSMEAR_Flags $JANA_TIMEOUT_STR -o$STANDARD_NAME"\_"geant$GEANTVER"\_"smeared.hddm $STANDARD_NAME"\_"geant$GEANTVER.hddm $BKGFOLDSTR"
+			$runSmear mcsmear $MCSMEAR_Flags $JANA_TIMEOUT_STR -o$STANDARD_NAME\_geant$GEANTVER\_smeared.hddm $STANDARD_NAME\_geant$GEANTVER.hddm $BKGFOLDSTR
 			set mcsmear_return_code=$status
 		endif
 
@@ -1870,14 +1976,22 @@ else
 		echo "RUNNING RECONSTRUCTION"
 		set file_to_recon=$STANDARD_NAME'_geant'$GEANTVER'_smeared.hddm'
 
+		if ( "$RUNNING_ENVIRONMENT" != "$ENVIRONMENT" ) then
+			echo "new env setup"
+			source /group/halld/Software/build_scripts/gluex_env_clean.csh
+			set xmltest1=`echo $ENVIRONMENT | rev | cut -c -4 | rev`
+			if ( "$xmltest1" == ".xml" ) then
+				source /group/halld/Software/build_scripts/gluex_env_jlab.csh $ENVIRONMENT
+			else
+				source $ENVIRONMENT
+			endif
+		endif
+
 		if ("$GENR" == "0" && "$GEANT" == "0" && "$SMEAR" == "0" ) then #obsolete, needs fixing
 			set file_to_recon="$CONFIG_FILE"
 		endif
 
 		set additional_hdroot=""
-		if ( "$EXPERIMENT" == "CPP" ) then
-			set additional_hdroot="-PKALMAN:ADD_VERTEX_POINT=1"
-		endif
 
 		if ( "$RECON_CALIBTIME" != "notime" ) then
 			set reconwholecontext = "variation=$RECON_VERSION calibtime=$RECON_CALIBTIME"

@@ -31,8 +31,9 @@ try:
 except:
     print("Could not connect to database")
     sys.exit(1)
-    
+
 bash = {}
+
 
 def dir_path(path):
     """Provide type defition for command line path arguments."""
@@ -42,10 +43,13 @@ def dir_path(path):
     else:
         raise argparse.ArgumentTypeError(f"{path} is not a valid path.")
 
+
 def add_bash(func):
     """Add decorated function to the bash action dictionary."""
     bash[func.__name__] = func
     return func
+
+
 @add_bash
 def bash_root(name_map, path, mc_dir):
     """Merge root files in mc_dir."""
@@ -57,7 +61,7 @@ def bash_root(name_map, path, mc_dir):
     if os.path.isfile(path.split("//")[0]+"/.bash_root"):
         print("Skipping bash_root step")
         return return_code
-    
+
     checkpointpath = root_path + "/.checkpoints/root/"
 
     for dir_type in name_map.keys():
@@ -75,8 +79,9 @@ def bash_root(name_map, path, mc_dir):
                 for run in name_map["trees"][tup]["run_nums"]:
                     if os.path.isfile(checkpointpath + '/' + dir_type + '/' +  fold_name + '/' + tup[0] + run + tup[1] + '.done'):
                         continue
-                    success = subprocess.run([f"/home/mcwrap/tools/hadd -v 1 -f {path + '/' + dir_type + '/' +  fold_name + '/' + tup[0] + run + tup[1]} {mc_dir + '/' + 'root' + '/' +  dir_type + '/' + tup[0]+run}*{tup[1]}"], shell=True)
+                    # success = subprocess.run([f"/home/mcwrap/tools/hadd -v 1 -f {path + '/' + dir_type + '/' +  fold_name + '/' + tup[0] + run + tup[1]} {mc_dir + '/' + 'root' + '/' +  dir_type + '/' + tup[0]+run}*{tup[1]}"], shell=True)
                     # success = subprocess.run([f"hadd -v 1 -f {path + '/' + dir_type + '/' +  fold_name + '/' + tup[0] + run + tup[1]} {mc_dir + '/' + 'root' + '/' +  dir_type + '/' + tup[0]+run}*{tup[1]}"], shell=True)
+                    success = subprocess.run([f"/home/mcwrap/sw/root-6.24.04/install/bin/hadd -v 1 -f {path + '/' + dir_type + '/' +  fold_name + '/' + tup[0] + run + tup[1]} {mc_dir + '/' + 'root' + '/' +  dir_type + '/' + tup[0]+run}*{tup[1]}"], shell=True)
                     return_code += success.returncode
                     if success.returncode == 0:
                         open(checkpointpath + '/' + dir_type + '/' +  fold_name + '/' + tup[0] + run + tup[1] + '.done', 'a').close()
@@ -99,8 +104,9 @@ def bash_root(name_map, path, mc_dir):
                 for run in name_map[dir_type][tup]["run_nums"]:
                     if os.path.isfile(checkpointpath + '/' + dir_type + '/' +  tup[0] + run + tup[1] + '.done'):
                         continue
-                    success = subprocess.run([f"/home/mcwrap/tools/hadd -v 1 -f {path + '/' + dir_type + '/' +  tup[0] + run + tup[1]} {mc_dir + '/' + 'root' + '/' +  dir_type + '/' + tup[0]+run}*{tup[1]}"], shell=True)
+                    # success = subprocess.run([f"/home/mcwrap/tools/hadd -v 1 -f {path + '/' + dir_type + '/' +  tup[0] + run + tup[1]} {mc_dir + '/' + 'root' + '/' +  dir_type + '/' + tup[0]+run}*{tup[1]}"], shell=True)
                     # success = subprocess.run([f"hadd -v 1 -f {path + '/' + dir_type + '/' +  tup[0] + run + tup[1]} {mc_dir + '/' + 'root' + '/' +  dir_type + '/' + tup[0]+run}*{tup[1]}"], shell=True)
+                    success = subprocess.run([f"/home/mcwrap/sw/root-6.24.04/install/bin/hadd -v 1 -f {path + '/' + dir_type + '/' +  tup[0] + run + tup[1]} {mc_dir + '/' + 'root' + '/' +  dir_type + '/' + tup[0]+run}*{tup[1]}"], shell=True)
                     return_code += success.returncode
                     if success.returncode == 0:
                         open(checkpointpath + '/' + dir_type + '/' +  tup[0] + run + tup[1] + '.done', 'a').close()
@@ -109,8 +115,9 @@ def bash_root(name_map, path, mc_dir):
     if return_code==0:
         print("Creating .bash_root file in "+path)
         open(path.split("//")[0]+"/.bash_root", 'a').close()
-    
+
     return return_code
+
 
 @add_bash
 def bash_hddm_merge(name_map, path, mc_dir):
@@ -141,6 +148,7 @@ def bash_hddm_merge(name_map, path, mc_dir):
 
     return return_code
 
+
 @add_bash
 def bash_hddm(name_map, path, mc_dir):
     """Bundle hddm files in mc_dir using tar."""
@@ -158,15 +166,30 @@ def bash_hddm(name_map, path, mc_dir):
         for run in name_map[tup]["run_nums"]:
             if os.path.isfile(checkpointpath + tup[0] + run + tup[1] + '.tar.done'):
                 continue
-            success = subprocess.run([f"tar cvf {path + tup[0] + run + tup[1]}.tar {mc_dir + '/'  +  'hddm' + '/' +   tup[0] + run}_*{tup[1]}"], shell=True)
+            #success = subprocess.run([f"tar cvf {path + tup[0] + run + tup[1]}.tar {mc_dir + '/'  +  'hddm' + '/' +   tup[0] + run}_*{tup[1]}"], shell=True)
+            
+            file_list=[]
+            pattern = re.compile(rf"^{re.escape(tup[0])}{re.escape(run)}_(\d{{3,4}}){re.escape(tup[1])}$")
+            for fname in os.listdir(mc_dir + '/hddm/'):
+                match = pattern.match(fname)
+                if match:
+                    file_list.append(fname)
+            if len(file_list) < 1:
+                continue
+            
+            bundle_command=f"tar cvf {path + tup[0] + run + tup[1]}.tar"
+            for fname in file_list:
+                bundle_command = bundle_command + f" {mc_dir}/hddm/{fname}"
+            #print(bundle_command)
+            
+            success = subprocess.run(bundle_command, shell=True)
             return_code += success.returncode
             if success.returncode == 0:
                 open(checkpointpath + tup[0] + run + tup[1] + '.tar.done', 'a').close()
-    
+
     if return_code==0:
         print("Creating .bash_hddm file in "+path)
         open(path.split("//")[0]+"/.bash_hddm", 'a').close()
-
 
     return return_code
 
@@ -200,9 +223,10 @@ def bash_configurations(name_map, path, mc_dir):
 
     return return_code
 
+
 def get_entry(file_name):
     """Return the prefix, run number, and suffix of file_name as a tuple by matching on the run number."""
-    match = re.search("([0-9]{6})_[0-9]{3}", file_name)
+    match = re.search("([0-9]{6})_([0-9]{3,4})(?![0-9])", file_name)
     if match:
         prefix = file_name[:match.start()]
         run_num = match.group(1)
@@ -210,6 +234,7 @@ def get_entry(file_name):
         return (prefix, run_num, suffix)
     else:
         return None
+
 
 def get_file_info(name_map, files, dir_type="root"):
     """Add prefix and suffix tuples from files into name_map."""
@@ -221,6 +246,7 @@ def get_file_info(name_map, files, dir_type="root"):
             if info:
                 dir_dict[(info[0], info[2])]["run_nums"].add(info[1])
     return dir_dict
+
 
 def get_run_range(name_map):   
     min_num, max_num = 100000000000000, -1
@@ -238,6 +264,8 @@ def get_run_range(name_map):
                 max_num = max(run, max_num)
 
     return (min_num, max_num)
+
+
 def recurse_name_map(name_map, path, mc_dir, hddm=False):
     """Call the corresponding bash actions for each directory in mc_dir."""
     return_code = 0
@@ -253,8 +281,6 @@ def recurse_name_map(name_map, path, mc_dir, hddm=False):
     return return_code
 
 
-
-                
 def bundle(name_map, mc_dir, temp_dir, hddm=False):
     """
     Traverse mc_dir via name_map and perform bash actions as appropriate.
@@ -273,7 +299,6 @@ def bundle(name_map, mc_dir, temp_dir, hddm=False):
     #else:
       #  return_code += subprocess.run([f"
 
-    
     print("INITIAL BUNDLE STEP DONE")
     good_runs = []
     if temp_dir is None:
@@ -286,18 +311,21 @@ def bundle(name_map, mc_dir, temp_dir, hddm=False):
     else:
         return_code += subprocess.run([f"tar cvf {temp_dir + '/' + 'output.tar'} {temp_dir + '/output/'} --remove-files"], shell = True).returncode
     return return_code
-   
+
+
 def move(mc_dir, temp_dir, out_dir):
     """
     Move the bundled up mc_dir into out_dir and remove the temporary output
     from mc_dir.
     """
+    subprocess.run(f"mkdir -p {out_dir}", shell=True)
     n_strip_components = mc_dir.strip(os.sep).count(os.sep) + 2
     if temp_dir is None:
         success = subprocess.run([f"mv {mc_dir + '/' + 'output.tar' } {out_dir}; cd {out_dir}; tar xvf output.tar --strip-components={n_strip_components}; rm output.tar"], shell=True)
     else:
         success = subprocess.run([f"mv {temp_dir + '/' + 'output.tar' } {out_dir}; cd {out_dir}; tar xvf output.tar --strip-components={n_strip_components}; rm output.tar"], shell=True)
     return success.returncode
+
 
 def get_directory_structure(rootdir):
     """
@@ -319,6 +347,7 @@ def get_directory_structure(rootdir):
             parent[folders[-1]] = subdir
     return name_map
 
+
 def count_namemap_entries(name_map):
     file_no = 0
     for k, v in name_map.items():
@@ -329,6 +358,7 @@ def count_namemap_entries(name_map):
             file_no += len(name_map[k])
     return file_no
 
+
 def check_success(name_map, output_path):
     mc_file_no = count_namemap_entries(name_map)
     print(f"Number of unique files to be output is {mc_file_no}")
@@ -338,6 +368,7 @@ def check_success(name_map, output_path):
     print(f"Number of unique files output is {merged_file_no}")
 
     return mc_file_no == merged_file_no
+
 
 def main(args):
 
@@ -354,7 +385,6 @@ def main(args):
             return -666
         print("Creating .merging file")
         open(args.tempdir+"/.merging", 'a').close()
-    
 
     print("args: ", args)
 
@@ -367,10 +397,9 @@ def main(args):
         input_path= proj["OutputLocation"].replace("/lustre19/expphy/cache/halld/gluex_simulations/REQUESTED_MC/","/work/halld/gluex_simulations/REQUESTED_MC/")
         output_path="/".join(proj["OutputLocation"].split("/")[:-1])+"/"
 
-
     print(f"Moving from: {args.input_path} to {args.output_path}")
     if args.f==False:
-        
+
         if args.tempdir is None:
             searchpath = args.input_path
         else:
@@ -410,6 +439,7 @@ def main(args):
 
     print(f"Returning final_success: {final_success}")
     return final_success
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Bundle and move MCwrapper outputs to another directory.")
